@@ -14,21 +14,64 @@ export const RegisterForm = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Log the form state
+    console.log('Form submission attempt:', {
+      emailLength: email.length,
+      passwordLength: password.length,
+      emailValid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+      passwordsMatch: password === confirmPassword
+    });
+    
     if (password !== confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    // Validate email format
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Registration successful! Please check your email to verify your account.');
-      router.push('/login');
+    // Validate password
+    if (!password.trim() || password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      console.log('Attempting Supabase signup with:', { 
+        email,
+        passwordLength: password.length,
+        timestamp: new Date().toISOString()
+      });
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      console.log('Supabase signup response:', {
+        success: !!data?.user,
+        error: error ? {
+          message: error.message,
+          status: error.status
+        } : null,
+        timestamp: new Date().toISOString()
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Registration successful! Please check your email to verify your account.');
+        router.push('/login');
+      }
+    } catch (err) {
+      console.error('Registration error:', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+      toast.error('Failed to register. Please try again.');
     }
   };
 
@@ -37,7 +80,7 @@ export const RegisterForm = () => {
       <input
         type="email"
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) => setEmail(e.target.value.trim())}
         className="w-full p-2 border rounded"
         placeholder="Email"
         required
